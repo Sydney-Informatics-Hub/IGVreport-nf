@@ -1,73 +1,74 @@
 #!/usr/bin/env nextflow
 
-/// To use DSL-2 will need to include this
+// To use DSL-2 will need to include this
 nextflow.enable.dsl=2
 
-// =================================================================
-// main.nf is the pipeline script for a nextflow pipeline
-// Should contain the following sections:
-	// Import subworkflows
-	// Log info function
-	// Help function 
-	// Main workflow structure
-	// Some tests to check input data, essential arguments
+// Import processes to be run in the workflow 
+include { extractRegion } from './modules/Extract.nf'
+include { indexVCF      } from './modules/Index.nf'
+include { htmlReport    } from './modules/Report.nf'
 
-// Examples are included for each section. Remove them and replace
-// with project-specific code. For more information on nextflow see:
-// https://www.nextflow.io/docs/latest/index.html and the SIH Nextflow
-// upskilling repo @ INSERT REPO PATH 
-//
-// ===================================================================
+// Declare parameters 
+params.chr      = false
+params.start    = false
+params.stop     = false
+params.sample   = false
+params.vcf      = false
+params.bam      = false
+params.outDir   = "./Report"
 
-// Import subworkflows to be run in the workflow
-// Each of these is a separate .nf script saved in modules/
-// Add as many of these as you need. The example below will
-// look for the process called process in modules/moduleName.nf
-// Include { process } from './modules/moduleName'
-  include { processOne } from './modules/process1'
-  include { processTwo } from './modules/process2'
-
-
-/// Print a header for your pipeline 
-
+// Print a header for your pipeline 
 log.info """\
 
 =======================================================================================
-Name of the pipeline - nf 
+I G V  R E P O R T - N F 
 =======================================================================================
 
 Created by the Sydney Informatics Hub, University of Sydney
 
-Find documentation and more info @ GITHUB REPO DOT COM
+Find documentation and more info @ https://github.com/Sydney-Informatics-Hub/IGVreport-nf
 
-Cite this pipeline @ INSERT DOI
-
-Log issues @ GITHUB REPO DOT COM
-
+Log issues @ https://github.com/Sydney-Informatics-Hub/IGVreport-nf/issues
 
 =======================================================================================
 Workflow run parameters 
 =======================================================================================
-input       : ${params.input}
+sample      : ${params.sample}
+chr         : ${params.chr}
+start bp    : ${params.start}
+end bp      : ${params.stop}
+bam file    : ${params.bam}
+vcf file    : ${params.vcf}
 outDir      : ${params.outDir}
 workDir     : ${workflow.workDir}
 =======================================================================================
 
 """
 
-/// Help function 
-// This is an example of how to set out the help function that 
-// will be run if run command is incorrect (if set in workflow) 
-// or missing/  
-
+// Help function 
 def helpMessage() {
     log.info"""
-  Usage:  nextflow run <PATH TO REPO>/myPipeline-nf <args> --input <samples.tsv>
+  Usage:  nextflow run main.nf --sample <sample> --vcf <vcf> --bam <bam> --chr <chr> --start <start> --stop <stop>
 
   Required Arguments:
 
-  --input	Specify full path and name of sample
-		input file (tab separated).
+  --sample  The name of the sample being processed. 
+            Required to name report.
+
+  --vcf     Full path to the vcf file being processed. 
+            VCF must be gzipped and indexed. 
+
+  --bam     Full path to the bam file being used to
+            generate the report. 
+
+  --chr     Chromosome name, should include the 'chr'
+            prefix. 
+
+  --start   The start base position of the region of 
+            interest.
+  
+  --stop    The ending base position of the 
+
 
   Optional Arguments:
 
@@ -76,35 +77,25 @@ def helpMessage() {
 """.stripIndent()
 }
 
-/// Main workflow structure. Include some input/runtime tests here.
-// Make sure to comment what each step does for readability. 
+// Main workflow structure. Include some input/runtime tests here.
 
 workflow {
-// Show help message if --help is run or if any required params are not 
-// provided at runtime
 
-        if ( params.help || params.input == false ){   
-        // Invoke the help function above and exit
-              helpMessage()
-              exit 1
+if ( params.help || params.bam == false || params.vcf == false || params.chr == false || params.start == false || params.stop == false ){   
+    helpMessage()
+    exit 1
 
-        // consider adding some extra contigencies here.
-        // could validate path of all input files in list?
-        // could validate indexes for input files exist?
-        // could validate indexes for reference exist?
-        // confirm with each tool, any requirements for their run?
+} else {
 
-// if none of the above are a problem, then run the workflow
-	} else {
-	
-  // Define input channels 
-  cohort_ch = Channel.fromPath("${params.cohort}")
+    // Extract region from the input vcf
+    extractRegion(params.vcf)
 
-	// Run process 1 example
-	processOne(cohort_ch, outDir_ch)
-	
-	// process 2 example 
-	processTwo(processOne.out)
+    // Index the subset vcf created by extractRegion()
+    indexVCF(extractRegion.out.subsetVCF)
+    
+    // Create html report from subset vcf and input bam 
+    htmlReport(extractRegion.out.subsetVCF, indexVCF.out.indexVCF, params.bam) 
+
 }}
 
 workflow.onComplete {
