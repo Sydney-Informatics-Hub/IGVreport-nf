@@ -14,7 +14,7 @@
 
 ## Description 
 
-Quickly generate IGV `.html` reports for a genomic region of interest in the human genome (hg38). Bcftools is used to subset a VCF to a region of interest, the subset VCF is then passed to IGV-reports, which generates a report consisting of a table of genomic sites or regions and associated IGV views for each site. The reports can be opened by any web browser as a static page.  
+Quickly generate [IGV `.html` reports](https://github.com/igvteam/igv-reports) for a genomic region of interest in the human genome (hg38). Bcftools is used to subset a VCF to a region of interest, the subset VCF is then passed to IGV-reports, which generates a report consisting of a table of genomic sites or regions and associated IGV views for each site. The reports can be opened by any web browser as a static page.  
 
 ### Diagram 
 
